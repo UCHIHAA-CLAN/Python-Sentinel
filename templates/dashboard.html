@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles/style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="dashboard-container">
+    <h1>Dashboard</h1>
+    <div class="charts">
+      <h2>CPU</h2><canvas id="cpuChart"></canvas>
+      <h2>Memory</h2><canvas id="memoryChart"></canvas>
+      <h2>Disk</h2><canvas id="diskChart"></canvas>
+      <h2>Network</h2><canvas id="networkChart"></canvas>
+      <h2>GPU</h2><canvas id="gpuChart"></canvas>
+    </div>
+    
+    <h2>Running Processes</h2>
+    <table id="processTable">
+      <thead>
+        <tr>
+          <th>PID</th>
+          <th>Name</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Process rows will be inserted here dynamically -->
+      </tbody>
+    </table>
+  </div>
+  
+  <script>
+    // Chart configuration template
+    function createChart(ctx, titleText) {
+      return new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Usage', 'Free'],
+          datasets: [{
+            data: [0, 100],
+            backgroundColor: ['#ff6384', '#e0e0e0']
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          title: { display: true, text: titleText }
+        }
+      });
+    }
+
+    // Initialize Charts
+    const cpuChart = createChart(document.getElementById('cpuChart').getContext('2d'), 'CPU Usage');
+    const memoryChart = createChart(document.getElementById('memoryChart').getContext('2d'), 'Memory Usage');
+    const diskChart = createChart(document.getElementById('diskChart').getContext('2d'), 'Disk Usage');
+    const networkChart = createChart(document.getElementById('networkChart').getContext('2d'), 'Network (Bytes Transferred)');
+    const gpuChart = createChart(document.getElementById('gpuChart').getContext('2d'), 'GPU Usage (N/A)');
+    
+    // Function to update system resource charts
+    async function updateResourceUsage() {
+      try {
+        const response = await fetch('/resource_usage');
+        const data = await response.json();
+        
+        cpuChart.data.datasets[0].data = [data.cpu, 100 - data.cpu];
+        memoryChart.data.datasets[0].data = [data.memory, 100 - data.memory];
+        diskChart.data.datasets[0].data = [data.disk, 100 - data.disk];
+        networkChart.data.datasets[0].data = [data.network % 100, 100 - (data.network % 100)];
+
+        cpuChart.update();
+        memoryChart.update();
+        diskChart.update();
+        networkChart.update();
+      } catch (err) {
+        console.error('Error fetching resource usage:', err);
+      }
+    }
+
+    // Function to fetch and render process list
+    async function updateProcessList() {
+      try {
+        const response = await fetch('/processes');
+        const processes = await response.json();
+        const tbody = document.getElementById('processTable').querySelector('tbody');
+        tbody.innerHTML = '';
+        
+        processes.forEach(proc => {
+          const row = document.createElement('tr');
+          row.innerHTML = `<td>${proc.pid}</td><td>${proc.name}</td><td><button onclick="killProcess(${proc.pid})">Kill</button></td>`;
+          tbody.appendChild(row);
+        });
+      } catch (err) {
+        console.error('Error fetching processes:', err);
+      }
+    }
+
+    // Function to kill a process
+    async function killProcess(pid) {
+      try {
+        const response = await fetch(`/kill_process/${pid}`, { method: 'POST' });
+        const result = await response.json();
+        if(result.status === 'success') {
+          alert(`Process ${pid} terminated successfully`);
+          updateProcessList();
+        } else {
+          alert(`Error terminating process: ${result.message}`);
+        }
+      } catch (err) {
+        console.error('Error killing process:', err);
+      }
+    }
+
+    // Periodic updates
+    setInterval(updateResourceUsage, 5000);
+    setInterval(updateProcessList, 10000);
+    updateResourceUsage();
+    updateProcessList();
+  </script>
+</body>
+</html>
