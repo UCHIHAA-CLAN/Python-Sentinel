@@ -1,8 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 import paramiko
 import psutil
-import threading
-import time
+
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'

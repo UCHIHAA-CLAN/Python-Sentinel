@@ -11,7 +11,7 @@ services:
   server:
     build:
       image: yassinezorgui/python-sentinel:latest
-      context: .
+      #context: .
     ports:
       - 8000:8000
 
