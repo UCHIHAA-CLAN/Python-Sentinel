@@ -9,11 +9,18 @@
 # https://github.com/docker/awesome-compose
 services:
   server:
-    build:
-      image: yassinezorgui/python-sentinel:latest
-      #context: .
+    image: yassinezorgui/python-sentinel:latest
     ports:
       - 8000:8000
+
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 30
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_LABEL_ENABLE=true
 
 # The commented out section below is an example of how to define a PostgreSQL
 # database that your application can use. `depends_on` tells Docker Compose to
