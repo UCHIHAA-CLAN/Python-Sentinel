@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Processes{% endblock %}
+
+{% block content %}
+<div class="processes-container">
+    <h2>Running Processes</h2>
+    <input type="text" id="processSearch" placeholder="Search processes..." onkeyup="filterProcesses()">
+    <table class="process-table">
+        <thead>
+            <tr>
+                <th onclick="sortTable(0)">PID ↕</th>
+                <th onclick="sortTable(1)">Name ↕</th>
+                <th onclick="sortTable(2)">CPU % ↕</th>
+                <th onclick="sortTable(3)">Memory % ↕</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="processTableBody">
+        </tbody>
+    </table>
+</div>
+
+<script>
+let processes = [];
+
+async function updateProcessList() {
+    try {
+        const response = await fetch('/processes');
+        processes = await response.json();
+        renderProcesses(processes);
+    } catch (err) {
+        console.error('Error fetching processes:', err);
+    }
+}
+
+function renderProcesses(processesToShow) {
+    const tbody = document.getElementById('processTableBody');
+    tbody.innerHTML = '';
+    
+    processesToShow.forEach(proc => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${proc.pid}</td>
+            <td>${proc.name}</td>
+            <td>${proc.cpu_percent?.toFixed(1) || 0}</td>
+            <td>${proc.memory_percent?.toFixed(1) || 0}</td>
+            <td>
+                <button class="kill-btn" onclick="killProcess(${proc.pid})">Kill</button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+async function killProcess(pid) {
+    if (!confirm('Are you sure you want to terminate this process?')) return;
+    
+    try {
+        const response = await fetch(`/kill_process/${pid}`, { method: 'POST' });
+        const result = await response.json();
+        if(result.status === 'success') {
+            alert(`Process ${pid} terminated successfully`);
+            updateProcessList();
+        } else {
+            alert(`Error terminating process: ${result.message}`);
+        }
+    } catch (err) {
+        console.error('Error:', err);
+        alert('Error communicating with server');
+    }
+}
+
+function filterProcesses() {
+    const searchTerm = document.getElementById('processSearch').value.toLowerCase();
+    const filtered = processes.filter(proc => 
+        proc.name.toLowerCase().includes(searchTerm) || 
+        proc.pid.toString().includes(searchTerm)
+    );
+    renderProcesses(filtered);
+}
+
+function sortTable(column) {
+    const sortKey = ['pid', 'name', 'cpu_percent', 'memory_percent'][column];
+    processes.sort((a, b) => {
+        if (typeof a[sortKey] === 'string') {
+            return a[sortKey].localeCompare(b[sortKey]);
+        }
+        return (a[sortKey] || 0) - (b[sortKey] || 0);
+    });
+    renderProcesses(processes);
+}
+
+// Initial load and periodic updates
+updateProcessList();
+setInterval(updateProcessList, 5000);
+</script>
+{% endblock %}

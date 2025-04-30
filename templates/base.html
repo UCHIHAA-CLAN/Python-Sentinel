@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}{% endblock %} - Python Sentinel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <nav class="nav-bar">
+        {% if session.username %}
+            <a href="{{ url_for('dashboard') }}" class="nav-item">Dashboard</a>
+            <a href="{{ url_for('processes_page') }}" class="nav-item">Processes</a>
+            <a href="{{ url_for('terminal') }}" class="nav-item">Terminal</a>
+            <a href="{{ url_for('logout') }}" class="nav-item logout">Logout</a>
+            <span class="user-info">Connected to: {{ session.username }}@{{ session.ip }}</span>
+        {% endif %}
+    </nav>
+    <div class="content">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

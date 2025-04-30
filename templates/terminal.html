@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Terminal{% endblock %}
+
+{% block content %}
+<div class="terminal-container">
+    <h2>SSH Terminal</h2>
+    <div id="terminal-output"></div>
+    <div class="terminal-input-container">
+        <input type="text" id="terminal-input" placeholder="Enter command...">
+        <button class="send-btn" onclick="sendCommand()">Send</button>
+    </div>
+</div>
+
+<script>
+const terminalOutput = document.getElementById('terminal-output');
+const terminalInput = document.getElementById('terminal-input');
+
+terminalInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        sendCommand();
+    }
+});
+
+async function sendCommand() {
+    const command = terminalInput.value;
+    if (!command) return;
+
+    try {
+        const response = await fetch('/execute_command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command })
+        });
+        
+        const result = await response.json();
+        terminalOutput.innerHTML += `<div style="color: #4CAF50">$ ${command}</div>`;
+        terminalOutput.innerHTML += `<div style="color: #fff">${result.output}</div>`;
+        terminalInput.value = '';
+        terminalOutput.scrollTop = terminalOutput.scrollHeight;
+    } catch (err) {
+        console.error('Error:', err);
+        terminalOutput.innerHTML += `<div style="color: #ff0000">Error executing command</div>`;
+    }
+}
+</script>
+{% endblock %}

@@ -1,124 +1,129 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Dashboard</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='styles/style.css') }}">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body>
-  <div class="dashboard-container">
-    <h1>Dashboard</h1>
-    <div class="charts">
-      <h2>CPU</h2><canvas id="cpuChart"></canvas>
-      <h2>Memory</h2><canvas id="memoryChart"></canvas>
-      <h2>Disk</h2><canvas id="diskChart"></canvas>
-      <h2>Network</h2><canvas id="networkChart"></canvas>
-      <h2>GPU</h2><canvas id="gpuChart"></canvas>
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <h2>System Resources</h2>
+    <div class="resource-cards">
+        <div class="resource-card">
+            <h3>CPU Usage</h3>
+            <div id="cpuValue">0%</div>
+            <div class="progress-bar">
+                <div id="cpuProgress" class="progress-bar-fill" style="width: 0%"></div>
+            </div>
+            <canvas id="cpuHistory"></canvas>
+        </div>
+        
+        <div class="resource-card">
+            <h3>Memory Usage</h3>
+            <div id="memoryValue">0%</div>
+            <div class="progress-bar">
+                <div id="memoryProgress" class="progress-bar-fill" style="width: 0%"></div>
+            </div>
+            <canvas id="memoryHistory"></canvas>
+        </div>
+        
+        <div class="resource-card">
+            <h3>Disk Usage</h3>
+            <div id="diskValue">0%</div>
+            <div class="progress-bar">
+                <div id="diskProgress" class="progress-bar-fill" style="width: 0%"></div>
+            </div>
+            <canvas id="diskHistory"></canvas>
+        </div>
+        
+        <div class="resource-card">
+            <h3>Network Traffic</h3>
+            <div id="networkValue">0 KB/s</div>
+            <canvas id="networkHistory"></canvas>
+        </div>
     </div>
-    
-    <h2>Running Processes</h2>
-    <table id="processTable">
-      <thead>
-        <tr>
-          <th>PID</th>
-          <th>Name</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        <!-- Process rows will be inserted here dynamically -->
-      </tbody>
-    </table>
-  </div>
-  
-  <script>
-    // Chart configuration template
-    function createChart(ctx, titleText) {
-      return new Chart(ctx, {
-        type: 'doughnut',
+</div>
+
+<script>
+function createHistoryChart(ctx, label) {
+    const labels = Array(30).fill('');
+    return new Chart(ctx, {
+        type: 'line',
         data: {
-          labels: ['Usage', 'Free'],
-          datasets: [{
-            data: [0, 100],
-            backgroundColor: ['#ff6384', '#e0e0e0']
-          }]
+            labels: labels,
+            datasets: [{
+                label: label,
+                data: Array(30).fill(0),
+                borderColor: '#007bff',
+                tension: 0.4,
+                fill: false
+            }]
         },
         options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          title: { display: true, text: titleText }
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
         }
-      });
-    }
+    });
+}
 
-    // Initialize Charts
-    const cpuChart = createChart(document.getElementById('cpuChart').getContext('2d'), 'CPU Usage');
-    const memoryChart = createChart(document.getElementById('memoryChart').getContext('2d'), 'Memory Usage');
-    const diskChart = createChart(document.getElementById('diskChart').getContext('2d'), 'Disk Usage');
-    const networkChart = createChart(document.getElementById('networkChart').getContext('2d'), 'Network (Bytes Transferred)');
-    const gpuChart = createChart(document.getElementById('gpuChart').getContext('2d'), 'GPU Usage (N/A)');
-    
-    // Function to update system resource charts
-    async function updateResourceUsage() {
-      try {
+// Initialize history charts
+const cpuHistory = createHistoryChart(document.getElementById('cpuHistory').getContext('2d'), 'CPU %');
+const memoryHistory = createHistoryChart(document.getElementById('memoryHistory').getContext('2d'), 'Memory %');
+const diskHistory = createHistoryChart(document.getElementById('diskHistory').getContext('2d'), 'Disk %');
+const networkHistory = createHistoryChart(document.getElementById('networkHistory').getContext('2d'), 'Network KB/s');
+
+let lastNetworkBytes = 0;
+
+async function updateResourceUsage() {
+    try {
         const response = await fetch('/resource_usage');
         const data = await response.json();
         
-        cpuChart.data.datasets[0].data = [data.cpu, 100 - data.cpu];
-        memoryChart.data.datasets[0].data = [data.memory, 100 - data.memory];
-        diskChart.data.datasets[0].data = [data.disk, 100 - data.disk];
-        networkChart.data.datasets[0].data = [data.network % 100, 100 - (data.network % 100)];
-
-        cpuChart.update();
-        memoryChart.update();
-        diskChart.update();
-        networkChart.update();
-      } catch (err) {
-        console.error('Error fetching resource usage:', err);
-      }
-    }
-
-    // Function to fetch and render process list
-    async function updateProcessList() {
-      try {
-        const response = await fetch('/processes');
-        const processes = await response.json();
-        const tbody = document.getElementById('processTable').querySelector('tbody');
-        tbody.innerHTML = '';
+        // Update current values and progress bars
+        document.getElementById('cpuValue').textContent = `${data.cpu.toFixed(1)}%`;
+        document.getElementById('cpuProgress').style.width = `${data.cpu}%`;
         
-        processes.forEach(proc => {
-          const row = document.createElement('tr');
-          row.innerHTML = `<td>${proc.pid}</td><td>${proc.name}</td><td><button onclick="killProcess(${proc.pid})">Kill</button></td>`;
-          tbody.appendChild(row);
-        });
-      } catch (err) {
-        console.error('Error fetching processes:', err);
-      }
-    }
+        document.getElementById('memoryValue').textContent = `${data.memory.toFixed(1)}%`;
+        document.getElementById('memoryProgress').style.width = `${data.memory}%`;
+        
+        document.getElementById('diskValue').textContent = `${data.disk.toFixed(1)}%`;
+        document.getElementById('diskProgress').style.width = `${data.disk}%`;
+        
+        // Calculate network speed
+        const networkSpeed = lastNetworkBytes ? (data.network - lastNetworkBytes) / 1024 : 0; // KB/s
+        lastNetworkBytes = data.network;
+        document.getElementById('networkValue').textContent = `${networkSpeed.toFixed(1)} KB/s`;
 
-    // Function to kill a process
-    async function killProcess(pid) {
-      try {
-        const response = await fetch(`/kill_process/${pid}`, { method: 'POST' });
-        const result = await response.json();
-        if(result.status === 'success') {
-          alert(`Process ${pid} terminated successfully`);
-          updateProcessList();
-        } else {
-          alert(`Error terminating process: ${result.message}`);
+        // Update history charts
+        function updateChart(chart, value) {
+            chart.data.datasets[0].data.shift();
+            chart.data.datasets[0].data.push(value);
+            chart.update('none'); // Use 'none' mode for better performance
         }
-      } catch (err) {
-        console.error('Error killing process:', err);
-      }
-    }
 
-    // Periodic updates
-    setInterval(updateResourceUsage, 5000);
-    setInterval(updateProcessList, 10000);
-    updateResourceUsage();
-    updateProcessList();
-  </script>
-</body>
-</html>
+        updateChart(cpuHistory, data.cpu);
+        updateChart(memoryHistory, data.memory);
+        updateChart(diskHistory, data.disk);
+        updateChart(networkHistory, networkSpeed);
+    } catch (err) {
+        console.error('Error fetching resource usage:', err);
+    }
+}
+
+// Update every second
+setInterval(updateResourceUsage, 1000);
+updateResourceUsage();
+</script>
+{% endblock %}
