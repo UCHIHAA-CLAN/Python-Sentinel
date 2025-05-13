@@ -22,7 +22,7 @@ Python-Sentinel is a web-based system monitoring and remote SSH management tool 
 
 ## Technologies Used
 - Python 3.12.6
-- Flask 3.1.0
+- Flask 3.1.1
 - Paramiko 3.5.1 (SSH client)
 - psutil 5.9.8 (System monitoring)
 - Chart.js (Data visualization)
